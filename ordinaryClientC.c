@@ -169,7 +169,7 @@ int main(){
 
                     printf("\nSong path:");
                     scanf("%s", path);
-                    audio = fopen(path, "r");
+                    audio = fopen(path, "rb");
                     aux = fopen("/home/denisa/Documents/PCD/proiect/aux.mp3", "wb");
                     fseek(audio, 0, SEEK_END);
                     octSize = ftell(audio);
@@ -220,32 +220,21 @@ int main(){
                         fwrite(sentAudio, sizeof(char), toSendSize, aux);
 
                         if(toSendSize > 999){ //4 positions
-                            snprintf(data, dataSize, "---%d%d---%d%s", 5, toSendSize, requestId, sentAudio);
+                            snprintf(data, dataSize, "---%d%d---%d", 5, toSendSize, requestId);
                         }else if(toSendSize > 99){ //3 positions
-                            snprintf(data, dataSize, "---%d-%d---%d%s", 5, toSendSize, requestId, sentAudio);
+                            snprintf(data, dataSize, "---%d-%d---%d", 5, toSendSize, requestId);
                         }else if(toSendSize > 9){ //2 positions
-                            snprintf(data, dataSize, "---%d--%d---%d%s", 5, toSendSize, requestId, sentAudio);
+                            snprintf(data, dataSize, "---%d--%d---%d", 5, toSendSize, requestId);
                         }else{ //1 position
-                            snprintf(data, dataSize, "---%d---%d---%d%s", 5, toSendSize, requestId, sentAudio);
+                            snprintf(data, dataSize, "---%d---%d---%d", 5, toSendSize, requestId);
                         }
-                        if(send(clientSocket, data, strlen(data) + 1, 0) ==-1){
+                        memcpy(data+12, sentAudio, toSendSize);
+                        if(send(clientSocket, data, toSendSize + 12, 0) ==-1){
                             fprintf(stderr, "Error sending data");
                         }
-                        if(i == 0){
-                            for(k = 0; k<1012; k++)
-                                printf("%c", sentAudio[k]);
-                        }
-                        // for(i = 4; i<12; i++){
-                        //     printf("%c", data[i]);
-                        // }
-                        // printf("Packet no %d", i);
-                        // sleep(1);
                         if (recv(clientSocket, data, dataSize, 0) < 0){
                             fprintf(stderr, "Error reading data");
                         }
-                        // for(i = 0; i<12; i++){
-                        //     printf("%c", data[i]);
-                        // }
                     }
                     // printf("\nRecommended songs: \n");
                     // for(i = 4; i<strlen(data); i++){
