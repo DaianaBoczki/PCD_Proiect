@@ -16,7 +16,7 @@ int main(){
 	int clientSocket = socket(AF_INET, SOCK_STREAM, 0);
     int opt, cont = 0, id, i, j, k, l, songSize, requestId, octSize, packetsNo, actualSongSize, toSendSize;
     char data[dataSize], songTitle[50], songGenre[50], sentNameGenre[100] = "", auxSize[4], 
-        auxRequestId[4], auxOct[4], path[200], sentAudio[dataSize - 12];
+        auxRequestId[4], auxOct[4], songbytes[5000000], path[200], sentAudio[dataSize - 12];
     FILE *audio, *aux;
 	struct sockaddr_in addr;
 	addr.sin_family = AF_INET;
