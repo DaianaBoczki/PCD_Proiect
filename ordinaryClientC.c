@@ -16,7 +16,7 @@ int main(){
 	int clientSocket = socket(AF_INET, SOCK_STREAM, 0);
     int opt, cont = 0, id, i, j, k, l, songSize, requestId, octSize, packetsNo, actualSongSize, toSendSize;
     char data[dataSize], songTitle[50], songGenre[50], sentNameGenre[100] = "", auxSize[4], 
-        auxRequestId[4], auxOct[4], songbytes[5000000], path[200], sentAudio[dataSize - 12];
+        auxRequestId[4], auxOct[4], path[200], sentAudio[dataSize - 12];
     FILE *audio, *aux;
 	struct sockaddr_in addr;
 	addr.sin_family = AF_INET;
@@ -72,6 +72,7 @@ int main(){
                     }
 
                     l = 0;
+                    audio = fopen(songTitle, "wb");
                     for(i = 0; i < songSize; i++){
                         if (recv(clientSocket, data, dataSize, 0) < 0){
                             fprintf(stderr, "Error reading data");
@@ -82,20 +83,12 @@ int main(){
                             j++;
                         }
                         octSize = atoi(auxOct);
-                        for(k = 0; k < octSize; k++){
-                            songbytes[l] = data[k+12];
-                            l++;
-                        }
+                        fwrite(data+12, sizeof(char), octSize, audio);
                         snprintf(data, dataSize, "---%d---%d---%c", 6, requestId, data[11]);
                         if (send(clientSocket, data, 12, 0) == -1){
                             fprintf(stderr, "Error sending data\n");
                         }
-                        actualSongSize += octSize;
-                        
                     }
-
-                    audio = fopen(songTitle, "wb");
-                    fwrite(songbytes, sizeof(char), actualSongSize, audio);
 
                     libvlc_instance_t *inst;
                     libvlc_media_player_t *mp;

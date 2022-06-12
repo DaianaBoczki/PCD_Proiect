@@ -1,0 +1,7 @@
+0,the classic,rap
+1,storm,classical
+2,choke,rock
+3,Archetype,rock
+4,furelise,classical
+5,Mount Everest,pop
+6,Boyfriend,pop
