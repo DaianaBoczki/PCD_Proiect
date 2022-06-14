@@ -713,9 +713,16 @@ void process_package(struct package_t package)
 
             // Deschidem file descriptor-ul de la baza de date cu melodii
             set_request_file_descriptor_to_rb(client_index, request_index, MUSIC_DB_PATH);
+            char httpHeader[100000] = 
+                "HTTP/1.1 200 OK\r\n"
+                "Content-Type: text/plain; charset=ASCII\r\n\r\n";
 
             // Facem un pachet cu informatia care trebuie trimisa clientului
             bytes_read = make_data_package(buffer, client_index, request_index, 7);
+            char auxbuf[2*BUFFER_SIZE];
+            strcpy(auxbuf, httpHeader);
+            strcat(auxbuf, buffer);
+            //strcpy(buffer, auxbuf);
 
             // Daca s-a intors un numar mai mare decat 0 de octeti cititi din fisier, inseamna ca inca avem informatie acolo
             // Daca se intorc 0, inseamna ca am terminat de citit din fisier si inchidem file descriptorul
@@ -723,7 +730,8 @@ void process_package(struct package_t package)
             {
                 // Gasim socket-ul corespunzator clientului tinta si trimitem pachetul la client
                 client_socket = get_socket_file_descriptor(client_index);
-                send_package(client_socket, buffer, bytes_read + header_size);
+                //send_package(client_socket, buffer, bytes_read + header_size);
+                send_package(client_socket, auxbuf, bytes_read + header_size + strlen(httpHeader));
             }
             else
             {
