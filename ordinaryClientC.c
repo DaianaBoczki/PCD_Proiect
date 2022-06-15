@@ -71,24 +71,19 @@ int main(){
                         fprintf(stderr, "Error sending data\n");
                     }
 
-                    l = 0;
                     audio = fopen(songTitle, "wb");
+                    int tmp;
                     for(i = 0; i < songSize; i++){
-                        if (recv(clientSocket, data, dataSize, 0) < 0){
+                        if ((tmp = recv(clientSocket, data, dataSize, 0)) < 0){
                             fprintf(stderr, "Error reading data");
                         }
-                        j = 0;
-                        for(k = 4; k < 8; k++){
-                            auxOct[j] = data[k];
-                            j++;
-                        }
-                        octSize = atoi(auxOct);
-                        fwrite(data+12, sizeof(char), octSize, audio);
+                        fwrite(data+12, sizeof(char), tmp-12, audio);
                         snprintf(data, dataSize, "---%d---%d---%c", 6, requestId, data[11]);
                         if (send(clientSocket, data, 12, 0) == -1){
                             fprintf(stderr, "Error sending data\n");
                         }
                     }
+                    fclose(audio);
 
                     libvlc_instance_t *inst;
                     libvlc_media_player_t *mp;
@@ -130,13 +125,8 @@ int main(){
                         fprintf(stderr, "Error reading data");
                     }
 
-                    printf("\nReceived package: \n");
-                    for(i = 0; i<12; i++){
-                        printf("%c", data[i]);
-                    }
-
                     printf("\nThe available songs: \n");
-                    for(i = 12; i< strlen(data); i++){
+                    for(i = 72; i< strlen(data); i++){
                         printf("%c", data[i]);
                     }
 
@@ -151,7 +141,7 @@ int main(){
                     }
                     break;
 
-                case 3: //      /home/denisa/BloodMoon.mp3 /home/denisa/TooYoung.mp3 /home/denisa/moon.mp3
+                case 3: //  
                     printf("\nThe title of the song: ");
                     scanf("%s", songTitle);
                     printf("\nThe genre of the song: ");
@@ -163,7 +153,6 @@ int main(){
                     printf("\nSong path:");
                     scanf("%s", path);
                     audio = fopen(path, "rb");
-                    aux = fopen("/home/denisa/Documents/PCD/proiect/aux.mp3", "wb");
                     fseek(audio, 0, SEEK_END);
                     octSize = ftell(audio);
                     fseek(audio, 0, SEEK_SET);
@@ -210,7 +199,6 @@ int main(){
                         }
                         octSize -= 1012;
                         memcpy(sentAudio, songbytes + (i*1012), toSendSize);
-                        fwrite(sentAudio, sizeof(char), toSendSize, aux);
 
                         if(toSendSize > 999){ //4 positions
                             snprintf(data, dataSize, "---%d%d---%d", 5, toSendSize, requestId);
@@ -240,7 +228,6 @@ int main(){
                     }
 
                     break;
-
             }
 
             printf("\nDo you want to continue?\n0 - Yes\n1 - No\n");

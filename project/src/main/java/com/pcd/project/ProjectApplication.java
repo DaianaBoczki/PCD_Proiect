@@ -11,6 +11,10 @@ import org.springframework.http.converter.json.MappingJackson2HttpMessageConvert
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.BodyInserter;
+import org.springframework.web.reactive.function.BodyInserters;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.io.*;
 import java.util.*;
@@ -28,17 +32,18 @@ public class ProjectApplication {
 		//String response = restTemplate.postForObject(path, entity, String.class);
 		String response = restTemplate.exchange(path, HttpMethod.POST, entity, String.class).getBody();
 		System.out.flush();
-		System.out.println(response);
+		for(int i = 72; i < response.length(); i++)
+			System.out.print(response.charAt(i));
 
 //		System.out.println((restTemplate.exchange(path, HttpMethod.POST, entity, String.class).getBody())+ "\n");
 //		System.out.flush();
 		return response;
 	}
 
-	public static void main(String[] args) throws FileNotFoundException, UnsupportedEncodingException {
+	public static void main(String[] args) throws FileNotFoundException{
 		//SpringApplication.run(ProjectApplication.class, args);
 
-		//clientHttpRequestFactory.setReadTimeout(10000);
+		clientHttpRequestFactory.setConnectTimeout(3000);
 		//restTemplate = new RestTemplate(clientHttpRequestFactory);
 		restTemplate = new RestTemplate();
 //		List<HttpMessageConverter<?>> messageConverters = new ArrayList<HttpMessageConverter<?>>();
@@ -53,7 +58,7 @@ public class ProjectApplication {
 		Scanner input = new Scanner(System.in);
 		int opt, cont = 0, id, i, j, k, l, songSize, requestId, octSize, packetsNo, actualSongSize, toSendSize, dataSize = 1024;
 		File audio;
-		String data, songTitle, songGenre, sentNameGenre, auxSize = "", auxRequestId = "", auxOct = "", songbytes, path, sentAudio;
+		String data, songTitle, songGenre, sentNameGenre, auxSize = "", auxRequestId = "", auxOct = "", songbytes, songPath, sentAudio;
 
 		while (cont == 0) {
 			System.out.println("\nChoose an option:\n1 - Listen to a song\n2 - Check uploads\n3 - Upload file\n");
@@ -88,30 +93,43 @@ public class ProjectApplication {
 					data = String.format("---%d---%d---%d", 6, requestId, requestId);
 					data = sendRequestType(headers, data);
 
-					l = 0;
 					PrintWriter writer = new PrintWriter(songTitle);
 					for(i = 0; i < songSize; i++){
-						j = 0;
-						for(k = 4; k < 8; k++){
-							auxOct.concat(String.valueOf(data.charAt(k)));
-							j++;
-						}
-						octSize = Integer.valueOf(auxOct);
 						writer.print(data);
 						data = String.format("---%d---%d---%d", 6, requestId, requestId);
 						data = sendRequestType(headers, data);
 					}
+					writer.close();
 
 					break;
 
 				case 2:
 					data = String.format("---%d", 2);
-					data = sendRequestType(headers, data);
+					sendRequestType(headers, data);
 					//System.out.println(data);
 
 					//requestId = Integer.valueOf(data.charAt(11));
-					data = String.format("---%d---%d---%d", 6, 0, 0);
+					//data = String.format("---%d---%d---%d", 6, 0, 0);
 					//data = sendRequestType(headers, data);
+					//WebClient client = WebClient.create(path);
+					//WebClient client = WebClient.builder().baseUrl(path).build();
+//					Mono<String> response = webClient.post()
+//							.uri(path)
+//							.header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+//							.body(Mono.just(data), String.class)
+//							.retrieve()
+//							.bodyToMono(String.class);
+					//Mono<String> response =
+//					client.post().uri(path).contentType(MediaType.TEXT_PLAIN).body(BodyInserters.fromValue(data))
+//							.retrieve().bodyToMono(String.class).subscribe(System.out::println);
+					//System.out.println(response.toString());
+//					client.post()
+//							.uri(path)
+//							.body(Mono.just(data), String.class)
+//							.retrieve()
+//							.bodyToFlux(String.class)
+//							.subscribe(System.out::println);
+
 					break;
 			}
 			System.out.println("\nDo you want to continue?\n0 - Yes\n1 - No\n");

@@ -24,6 +24,7 @@ while cont==0:
         print("\nReceived package: \n", data[0:12])
 
         j = 0
+        auxSize = '0'*4
         for i in range(4, 8):
             auxSize += data[i]
             j+=1
@@ -35,7 +36,6 @@ while cont==0:
         clientSocket.send(data.encode())
         print("\nSent package: \n", data)
 
-        l = 0
         audio = open(songTitle, "wb")
         for i in range(0, songSize):
             data = clientSocket.recv(dataSize)
@@ -59,8 +59,7 @@ while cont==0:
         data = clientSocket.recv(dataSize)
         data = data.decode("utf-8", "ignore")
 
-        print("\nReceived package: \n", data[0:12])
-        print("\nThe available songs:\n", data[12:])
+        print("\nThe available songs:\n", data[72:])
 
         requestId = data[11]
         data = "---6---{reqID}---{reqID}".format(reqID = requestId)

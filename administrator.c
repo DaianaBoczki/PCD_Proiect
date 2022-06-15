@@ -24,10 +24,14 @@ int main(){
 
 	if(connect(clientSocket, (struct sockaddr *) &addr , sizeof(addr)) == 0){
 		printf("Connection established\n");
+        printf("Connection established\n");
+        if(send(clientSocket, "---9", 4, 0) == -1){
+            fprintf(stderr, "Error while requesting administrator rights\n");
+            exit(EXIT_FAILURE);
+        }
 
         while(cont == 0){
-            printf("\nChoose an option:\n0 - Disconnect clients\n1 - Listen to a song\n2 - Check uploads\n");
-            scanf("%d", &opt);
+            printf("\nChoose an option:\n1 - Listen to a song\n2 - Check uploads\n3 - Close server\n4 - Disconnect all clients\n5 - Get number of clients\n");            scanf("%d", &opt);
             switch (opt){
                 case 0:
                     snprintf(data, dataSize, "---%d", 0);
@@ -78,8 +82,9 @@ int main(){
 
                     l = 0;
                     audio = fopen(songTitle, "wb");
+                    int tmp;
                     for(i = 0; i < songSize; i++){
-                        if (recv(clientSocket, data, dataSize, 0) < 0){
+                        if ((tmp = recv(clientSocket, data, dataSize, 0)) < 0){
                             fprintf(stderr, "Error reading data");
                         }
                         j = 0;
@@ -88,12 +93,13 @@ int main(){
                             j++;
                         }
                         octSize = atoi(auxOct);
-                        fwrite(data+12, sizeof(char), octSize, audio);
+                        fwrite(data+12, sizeof(char), tmp-12, audio);
                         snprintf(data, dataSize, "---%d---%d---%c", 6, requestId, data[11]);
                         if (send(clientSocket, data, 12, 0) == -1){
                             fprintf(stderr, "Error sending data\n");
                         }
                     }
+                    fclose(audio);
 
                     libvlc_instance_t *inst;
                     libvlc_media_player_t *mp;
@@ -155,14 +161,46 @@ int main(){
                         fprintf(stderr, "Error sending data\n");
                     }
                     break;
+
+                case 3:
+                    if(send(clientSocket, "--10", 4, 0) == -1){
+                        fprintf(stderr, "Error sending data\n");
+                        exit(EXIT_FAILURE);
+                    }
+                    goto exit_admin;
+                    break;
+
+                case 4:
+                    if(send(clientSocket, "---8", 4, 0) == -1){
+                        fprintf(stderr, "Error sending data\n");
+                        exit(EXIT_FAILURE);
+                    }
+                    break;
+
+                case 5:
+                    if(send(clientSocket, "--11", 4, 0) == -1){
+                        fprintf(stderr, "Error sending data\n");
+                        exit(EXIT_FAILURE);
+                    }
+
+                    if (recv(clientSocket, data, dataSize, 0) < 0){
+                        fprintf(stderr, "Error reading data");
+                    }
+                    fprintf(stderr, "There are %s clients connected\n", data);
+                    break;
             }
 
             printf("\nDo you want to continue?\n0 - Yes\n1 - No\n");
             scanf("%d", &cont);
         }
 	}
+
+    exit_admin:
+        printf("Server closed, closing admin\n");
 }
 
 /*
+└──╼ $gcc $(pkg-config --cflags libvlc) -c administrator.c -o administrator.o
+└──╼ $gcc administrator.o -o administrator $(pkg-config --libs libvlc)
 
 */

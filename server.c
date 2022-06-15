@@ -203,7 +203,7 @@ void set_request_file_descriptor_to_rb(int  client_index, int request_index, cha
         perror(NULL);
         exit(EXIT_FAILURE);
     }
-
+    fprintf(stderr, "client_index: %d | request_index: %d | fp: %d\n", client_index, request_index, tmp_fp);
     pthread_mutex_lock(&lock);
     clients[client_index].request_queue[request_index].fp = tmp_fp;
     pthread_mutex_unlock(&lock);
@@ -293,7 +293,8 @@ void send_package(int socket_fd, char *buffer, int size)
 {
     if (send(socket_fd, buffer, size, 0) == -1)
     {
-        fprintf(stderr, "Error while sending the data.\n");
+        fprintf(stderr, "Error while sending the data: %d\n", errno);
+        perror(NULL);
         exit(EXIT_FAILURE);
     }
 }
@@ -306,18 +307,26 @@ int make_data_package(char *buffer, int client_index, int request_index, int pac
 
     // Luam file descriptor-ul ca sa citim din fisier
     tmp_fp = get_file_descriptor(client_index, request_index);
+    //fprintf(stderr, "%d\n", tmp_fp);
 
     // Citim primul pachet din fisier (poate sa fie si ultimul, in cazul in care baza de date este mica)
     bytes_read = fread(buffer + header_size, sizeof(char), BUFFER_SIZE - header_size, tmp_fp);
+    //fprintf(stderr, "b\n");
 
     // Setam header-ul de la mesajul care urmeaza sa fie trimis
     put_int_to_char_in_buffer(buffer, 0, 4, package_type);
+    //fprintf(stderr, "c\n");
+
 
     // Punem dimensiunea octetilor cititi de la poz 4 la 7 in buffer
     put_int_to_char_in_buffer(buffer, 4, 8, bytes_read);
+    //fprintf(stderr, "d\n");
+
 
     // Punem ID-ul crererii de la poz 8 la 11, ID-ul este reprezentat de variabila request_index
     put_int_to_char_in_buffer(buffer, 8, 12, request_index);
+    //fprintf(stderr, "e\n");
+
 
     return bytes_read;
 }
@@ -627,6 +636,24 @@ int is_admin_connected()
     return 0;
 }
 
+void set_request_to_default(int client_index, int request_index)
+{
+    pthread_mutex_lock(&lock);
+    clients[client_index].request_queue[request_index].request_type = -1;
+    pthread_mutex_unlock(&lock);
+}
+
+int is_admin(int client_index)
+{
+    int status;
+
+    pthread_mutex_lock(&lock);
+    status = clients[client_index].admin;
+    pthread_mutex_unlock(&lock);
+
+    return status;
+}
+
 void process_package(struct package_t package)
 {
     struct client_state client;
@@ -639,8 +666,10 @@ void process_package(struct package_t package)
     int client_socket;
     int music_id;
     int size;
+    int client_socket_tmp;
     char buffer[BUFFER_SIZE];
-    char path[512];
+    char path[516];
+    char tmp_buff[256];
     char title[256], genre[256];
     FILE *tmp_fp;
 
@@ -668,6 +697,7 @@ void process_package(struct package_t package)
 
         header_size = 12;
         request_index = find_free_request_slot(client_index);
+        fprintf(stderr, "request_index: %d\n", request_index);
 
         // Daca e egal cu MAX_REQUEST_PER_CLIENT inseamna ca toate locurile de cereri noi sunt ocupate
         if (request_index < MAX_REQUEST_PER_CLIENT)
@@ -686,6 +716,7 @@ void process_package(struct package_t package)
 
             // Deschidem file descriptor-ul de la baza de date cu melodii
             set_request_file_descriptor_to_rb(client_index, request_index, path);
+            //fprintf(stderr, "tttttt, %d\n", get_file_descriptor(client_index, request_index));
 
             // Salvam cate pachete are melodia care urmeaza sa fie trimisa
             size = get_number_of_packets(client_index, request_index, BUFFER_SIZE - header_size);
@@ -695,6 +726,11 @@ void process_package(struct package_t package)
 
             // Gasim socket-ul corespunzator clientului tinta si trimitem pachetul la client
             client_socket = get_socket_file_descriptor(client_index);
+            /*char httpHeader[100000] = "HTTP/1.1 200 OK\r\n" "Content-Type: text/plain; charset=UTF-8\r\n\r\n";
+            char auxbuf[2*BUFFER_SIZE];
+            strcpy(auxbuf, httpHeader);
+            strcat(auxbuf, buffer);*/
+            //send_package(client_socket, auxbuf, bytes_read + header_size + strlen(httpHeader));
             send_package(client_socket, buffer, bytes_read + header_size);
         }
 
@@ -713,16 +749,13 @@ void process_package(struct package_t package)
 
             // Deschidem file descriptor-ul de la baza de date cu melodii
             set_request_file_descriptor_to_rb(client_index, request_index, MUSIC_DB_PATH);
-            char httpHeader[100000] = 
-                "HTTP/1.1 200 OK\r\n"
-                "Content-Type: text/plain; charset=ASCII\r\n\r\n";
+            char httpHeader[100000] = "HTTP/1.1 200 OK\r\n" "Content-Type: text/plain; charset=UTF-8\r\n\r\n";
 
             // Facem un pachet cu informatia care trebuie trimisa clientului
             bytes_read = make_data_package(buffer, client_index, request_index, 7);
             char auxbuf[2*BUFFER_SIZE];
             strcpy(auxbuf, httpHeader);
             strcat(auxbuf, buffer);
-            //strcpy(buffer, auxbuf);
 
             // Daca s-a intors un numar mai mare decat 0 de octeti cititi din fisier, inseamna ca inca avem informatie acolo
             // Daca se intorc 0, inseamna ca am terminat de citit din fisier si inchidem file descriptorul
@@ -824,11 +857,14 @@ void process_package(struct package_t package)
         break;
 
     case 6:
-        // Luam tipul de cerere de la clientul tinta, ca sa aflam la ce ii corespunde confirmarea
-        request_type = get_request_type(client_index, request_index);
-
+        //fprintf(stderr, "In case 6\n");
         // Cautam care cerere ii este asociata clientului tinta in funtie de ID
         request_index = extract_number(package.package, 4, 8);
+        //fprintf(stderr, "1\n");
+
+        // Luam tipul de cerere de la clientul tinta, ca sa aflam la ce ii corespunde confirmarea
+        request_type = get_request_type(client_index, request_index);
+        //fprintf(stderr, "2\n");
 
         //fprintf(stderr, "request_type: %d, request_index: %d\n", request_type, request_index);
 
@@ -836,6 +872,7 @@ void process_package(struct package_t package)
         {
             // Facem un pachet cu informatia care trebuie trimisa clientului
             bytes_read = make_data_package(buffer, client_index, request_index, 5);
+            //fprintf(stderr, "3\n");
 
             // Daca s-a intors un numar mai mare decat 0 de octeti cititi din fisier, inseamna ca inca avem informatie acolo
             // Daca se intorc 0, inseamna ca am terminat de citit din fisier si inchidem file descriptorul
@@ -843,11 +880,15 @@ void process_package(struct package_t package)
             {
                 // Gasim socket-ul corespunzator clientului tinta si trimitem pachetul la client
                 client_socket = get_socket_file_descriptor(client_index);
+                //fprintf(stderr, "4\n");
                 send_package(client_socket, buffer, bytes_read + header_size);
+                //fprintf(stderr, "5\n");
             }
             else
             {
                 close_file_descriptor(client_index, request_index);
+                set_request_to_default(client_index, request_index);
+                //fprintf(stderr, "59999\n");
             }
         }
         else if (request_type == 2)
@@ -866,15 +907,33 @@ void process_package(struct package_t package)
             else
             {
                 close_file_descriptor(client_index, request_index);
+                set_request_to_default(client_index, request_index);
             }
         }
 
         break;
 
     case 8:
-        // DE REVIZUIT
-        close(get_socket_file_descriptor(client_index));
-        set_client_to_default(client_index);
+        if (is_admin(client_index))
+        {
+            fprintf(stderr, "Disconnecting clients\n");
+
+            for (int i = 0; i < MAX_CLIENTS; i++)
+            {
+                client_socket = get_socket_file_descriptor(i);
+                if (client_socket)
+                {
+                    close(client_socket);
+                    set_client_to_default(i);
+                }
+            }
+
+            fprintf(stderr, "Clients disconnected\n");
+        }
+        else
+        {
+            fprintf(stderr, "Unauthorised client tried to disconnect the clients\n");
+        }
 
         break;
 
@@ -893,7 +952,42 @@ void process_package(struct package_t package)
 
         break;
 
+    case 10:
+        if (is_admin(client_index))
+        {
+            fprintf(stderr, "Server closed from admin\n");
+            sem_post(&close_server);
+        }
+        else
+        {
+            fprintf(stderr, "Unauthorised client tried to close the server\n");
+        }
+
+        break;
+
+    case 11:
+        if (is_admin(client_index))
+        {
+            size = 0;
+            client_socket = get_socket_file_descriptor(client_index);
+
+            for (int i = 0; i < MAX_CLIENTS; i++)
+            {
+                client_socket_tmp = get_socket_file_descriptor(i);
+                if (client_socket_tmp)
+                {
+                    size++;
+                }
+            }
+
+            snprintf(tmp_buff, 256, "%d", size);
+            send_package(client_socket, tmp_buff, strlen(tmp_buff) + 1);
+        }
+
+        break;
+
     default:
+        fprintf(stderr, "Unknown request type\n");
         break;
     }
 }
@@ -1028,7 +1122,7 @@ void *package_reader(void *args)
                     {
                         fprintf(stderr, "Package reading failure %d\n", errno);
                         perror(NULL);
-                        exit(1);
+                        //exit(1);
                     }
                 }
                 else if (recv_res == 0)     // Daca e 0, s-a pierdut conexiunea la client
@@ -1126,6 +1220,10 @@ int main(int argc , char *argv[])
     sem_destroy(&empty_sem);
     sem_destroy(&full_sem);
     sem_destroy(&close_server);
+
+    pthread_cancel(client_connection);
+    pthread_cancel(reader);
+    pthread_cancel(pk_processing);
 
     printf("Server closed\n");
 
