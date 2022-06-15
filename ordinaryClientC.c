@@ -121,12 +121,13 @@ int main(){
                     if(send(clientSocket, data, strlen(data) + 1, 0) ==-1){
                         fprintf(stderr, "Error sending data");
                     }
-                    if (recv(clientSocket, data, dataSize, 0) < 0){
+                    int tmp2;
+                    if ((tmp2 = recv(clientSocket, data, dataSize, 0)) < 0){
                         fprintf(stderr, "Error reading data");
                     }
 
                     printf("\nThe available songs: \n");
-                    for(i = 72; i< strlen(data); i++){
+                    for(i = 72; i < tmp2; i++){
                         printf("%c", data[i]);
                     }
 
